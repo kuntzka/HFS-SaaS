@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/HFS.Api/HFS.Api.csproj" />
+    <Project Path="src/HFS.Application/HFS.Application.csproj" />
+    <Project Path="src/HFS.Domain/HFS.Domain.csproj" />
+    <Project Path="src/HFS.Infrastructure/HFS.Infrastructure.csproj" />
+    <Project Path="src/HFS.Migration/HFS.Migration.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/HFS.Application.Tests/HFS.Application.Tests.csproj" />
+    <Project Path="tests/HFS.Domain.Tests/HFS.Domain.Tests.csproj" />
+    <Project Path="tests/HFS.Integration.Tests/HFS.Integration.Tests.csproj" />
+  </Folder>
+</Solution>

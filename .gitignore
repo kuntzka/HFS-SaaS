@@ -1,0 +1,23 @@
+## .NET
+bin/
+obj/
+*.user
+.vs/
+*.suo
+launchSettings.json
+
+## Secrets — never commit
+appsettings.Production.json
+appsettings.Staging.json
+**/secrets.json
+
+## Node / Frontend
+frontend/node_modules/
+frontend/dist/
+
+## Docker
+.docker/
+
+## OS
+.DS_Store
+Thumbs.db
