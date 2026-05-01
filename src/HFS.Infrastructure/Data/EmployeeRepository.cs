@@ -67,19 +67,19 @@ public class EmployeeRepository(SqlConnectionFactory db)
     public async Task<bool> IsInUseAsync(int id)
     {
         using var conn = db.CreateConnection();
-        return await conn.ExecuteScalarAsync<bool>(db.Sql("""
+        return await conn.ExecuteScalarAsync<int>(db.Sql("""
             SELECT CAST(CASE WHEN EXISTS (
                 SELECT 1 FROM {schema}.commission c WHERE c.employee_id = @id
             ) OR EXISTS (
                 SELECT 1 FROM {schema}.customer cu WHERE cu.employee_id = @id
             ) THEN 1 ELSE 0 END AS BIT)
-            """), new { id });
+            """), new { id }) > 0;
     }
 
     public async Task<bool> HasOverlapAsync(int employeeId, DateOnly start, DateOnly? end, int? excludePeriodId)
     {
         using var conn = db.CreateConnection();
-        return await conn.ExecuteScalarAsync<bool>(db.Sql("""
+        return await conn.ExecuteScalarAsync<int>(db.Sql("""
             SELECT CAST(CASE WHEN EXISTS (
                 SELECT 1 FROM {schema}.employee_activity_period
                 WHERE employee_id = @employeeId
@@ -87,7 +87,7 @@ public class EmployeeRepository(SqlConnectionFactory db)
                   AND start_date <= ISNULL(@end, '9999-12-31')
                   AND ISNULL(end_date, '9999-12-31') >= @start
             ) THEN 1 ELSE 0 END AS BIT)
-            """), new { employeeId, start, end, excludePeriodId });
+            """), new { employeeId, start, end, excludePeriodId }) > 0;
     }
 
     public async Task<int> CreateAsync(string firstName, string lastName, DateOnly firstPeriodStart)
