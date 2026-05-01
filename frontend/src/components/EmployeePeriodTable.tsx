@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Table, Button, DatePicker, Space, Popconfirm, Alert, message } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined, SaveOutlined, CloseOutlined } from '@ant-design/icons'
 import dayjs, { Dayjs } from 'dayjs'
+import axios from 'axios'
 import client from '../api/client'
 
 interface Period {
@@ -64,9 +65,11 @@ export function EmployeePeriodTable({ employeeId }: { employeeId: number }) {
       }
       setEditing(null)
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-      if (msg) setOverlapError(msg)
-      else message.error('Failed to save period')
+      if (axios.isAxiosError(err) && err.response?.data?.message) {
+        setOverlapError(err.response.data.message as string)
+      } else {
+        message.error('Failed to save period')
+      }
     } finally {
       setSaving(false)
     }
@@ -92,10 +95,10 @@ export function EmployeePeriodTable({ employeeId }: { employeeId: number }) {
       key: 'start',
       render: (_: unknown, row: DisplayRow) => {
         if (row.id === NEW_ID && editing?.id === NEW_ID) {
-          return <DatePicker value={editing.start} onChange={v => setEditing(e => e ? { ...e, start: v } : null)} size="small" />
+          return <DatePicker value={editing.start} onChange={v => setEditing(prev => ({ ...prev!, start: v }))} size="small" />
         }
         if (row.id !== NEW_ID && editing?.id === row.id) {
-          return <DatePicker value={editing.start} onChange={v => setEditing(e => e ? { ...e, start: v } : null)} size="small" />
+          return <DatePicker value={editing.start} onChange={v => setEditing(prev => ({ ...prev!, start: v }))} size="small" />
         }
         return 'startDate' in row ? row.startDate : null
       },
@@ -110,7 +113,7 @@ export function EmployeePeriodTable({ employeeId }: { employeeId: number }) {
             <Space direction="vertical" size={4}>
               <DatePicker
                 value={editing.end}
-                onChange={v => setEditing(e => e ? { ...e, end: v } : null)}
+                onChange={v => setEditing(prev => ({ ...prev!, end: v }))}
                 allowClear
                 size="small"
               />
