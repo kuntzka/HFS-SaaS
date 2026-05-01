@@ -1,0 +1,80 @@
+using HFS.Infrastructure.Data;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace HFS.Api.Controllers;
+
+public record CreateEmployeeRequest(string FirstName, string LastName, DateOnly FirstPeriodStart);
+public record UpdateEmployeeNameRequest(string FirstName, string LastName);
+public record UpsertPeriodRequest(DateOnly StartDate, DateOnly? EndDate);
+
+[ApiController]
+[Route("api/employees")]
+[Authorize]
+public class EmployeesController(EmployeeRepository repo) : ControllerBase
+{
+    private readonly EmployeeRepository _repo = repo;
+
+    [HttpGet]
+    public async Task<IActionResult> GetAll() =>
+        Ok(await _repo.GetAllAsync());
+
+    [HttpPost]
+    public async Task<IActionResult> Create([FromBody] CreateEmployeeRequest request)
+    {
+        var employeeId = await _repo.CreateAsync(request.FirstName, request.LastName, request.FirstPeriodStart);
+        return StatusCode(201, new { employeeId });
+    }
+
+    [HttpPut("{id:int}")]
+    public async Task<IActionResult> UpdateName(int id, [FromBody] UpdateEmployeeNameRequest request)
+    {
+        await _repo.UpdateNameAsync(id, request.FirstName, request.LastName);
+        return NoContent();
+    }
+
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        if (await _repo.IsInUseAsync(id))
+            return Conflict("Employee has commission or customer records and cannot be deleted. Use Deactivate instead.");
+        await _repo.DeleteAsync(id);
+        return NoContent();
+    }
+
+    [HttpPost("{id:int}/deactivate")]
+    public async Task<IActionResult> Deactivate(int id)
+    {
+        await _repo.DeactivateAsync(id);
+        return NoContent();
+    }
+
+    [HttpGet("{id:int}/periods")]
+    public async Task<IActionResult> GetPeriods(int id) =>
+        Ok(await _repo.GetPeriodsAsync(id));
+
+    [HttpPost("{id:int}/periods")]
+    public async Task<IActionResult> AddPeriod(int id, [FromBody] UpsertPeriodRequest request)
+    {
+        if (await _repo.HasOverlapAsync(id, request.StartDate, request.EndDate, excludePeriodId: null))
+            return BadRequest("This period overlaps with an existing period for this employee.");
+        var periodId = await _repo.AddPeriodAsync(id, request.StartDate, request.EndDate);
+        return StatusCode(201, new { id = periodId });
+    }
+
+    [HttpPut("{id:int}/periods/{periodId:int}")]
+    public async Task<IActionResult> UpdatePeriod(int id, int periodId, [FromBody] UpsertPeriodRequest request)
+    {
+        if (await _repo.HasOverlapAsync(id, request.StartDate, request.EndDate, excludePeriodId: periodId))
+            return BadRequest("This period overlaps with an existing period for this employee.");
+        await _repo.UpdatePeriodAsync(periodId, request.StartDate, request.EndDate);
+        return NoContent();
+    }
+
+    [HttpDelete("{id:int}/periods/{periodId:int}")]
+    public async Task<IActionResult> DeletePeriod(int id, int periodId)
+    {
+        await _repo.DeletePeriodAsync(periodId);
+        return NoContent();
+    }
+}
