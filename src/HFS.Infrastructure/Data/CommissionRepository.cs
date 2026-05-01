@@ -98,7 +98,7 @@ public class CommissionRepository(SqlConnectionFactory db, ITenantContext tenant
     {
         using var conn = db.CreateConnection();
         return await conn.QueryFirstOrDefaultAsync<ServiceCalcRuleRow>(db.Sql("""
-            SELECT id AS Id, [percent] AS Percent
+            SELECT id AS Id, [percent] AS [Percent]
             FROM {schema}.service_calc_rule
             WHERE service_type_id = @serviceTypeId
               AND min_distance <= @distance
@@ -112,7 +112,7 @@ public class CommissionRepository(SqlConnectionFactory db, ITenantContext tenant
     {
         using var conn = db.CreateConnection();
         return await conn.QueryFirstOrDefaultAsync<ServiceWeekRuleRow>(db.Sql("""
-            SELECT id AS Id, [percent] AS Percent
+            SELECT id AS Id, [percent] AS [Percent]
             FROM {schema}.service_week_rule
             WHERE service_type_id = @serviceTypeId
               AND start_week <= @weekId AND end_week >= @weekId
@@ -124,7 +124,7 @@ public class CommissionRepository(SqlConnectionFactory db, ITenantContext tenant
     {
         using var conn = db.CreateConnection();
         return await conn.QueryFirstOrDefaultAsync<AccountMgrRuleRow>(db.Sql("""
-            SELECT r.id AS Id, d.[percent] AS Percent, d.payroll_flag AS PayrollFlag
+            SELECT r.id AS Id, d.[percent] AS [Percent], d.payroll_flag AS PayrollFlag
             FROM {schema}.account_mgr_rule r
             JOIN {schema}.account_mgr_rule_detail d ON r.id = d.account_mgr_rule_id
             WHERE r.employee_id = @employeeId
