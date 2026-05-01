@@ -172,23 +172,23 @@ public class EmployeeRepository(SqlConnectionFactory db)
             """), new { employeeId, start, end });
     }
 
-    public async Task<bool> UpdatePeriodAsync(int periodId, DateOnly start, DateOnly? end)
+    public async Task<bool> UpdatePeriodAsync(int employeeId, int periodId, DateOnly start, DateOnly? end)
     {
         using var conn = db.CreateConnection();
         var rows = await conn.ExecuteAsync(db.Sql("""
             UPDATE {schema}.employee_activity_period
             SET start_date = @start, end_date = @end
-            WHERE id = @periodId
-            """), new { periodId, start, end });
+            WHERE id = @periodId AND employee_id = @employeeId
+            """), new { employeeId, periodId, start, end });
         return rows > 0;
     }
 
-    public async Task<bool> DeletePeriodAsync(int periodId)
+    public async Task<bool> DeletePeriodAsync(int employeeId, int periodId)
     {
         using var conn = db.CreateConnection();
         var rows = await conn.ExecuteAsync(
-            db.Sql("DELETE FROM {schema}.employee_activity_period WHERE id = @periodId"),
-            new { periodId });
+            db.Sql("DELETE FROM {schema}.employee_activity_period WHERE id = @periodId AND employee_id = @employeeId"),
+            new { employeeId, periodId });
         return rows > 0;
     }
 }

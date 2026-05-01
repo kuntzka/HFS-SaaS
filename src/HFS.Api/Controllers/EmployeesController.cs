@@ -74,14 +74,14 @@ public class EmployeesController(EmployeeRepository repo) : ControllerBase
     {
         if (await _repo.HasOverlapAsync(id, request.StartDate, request.EndDate, excludePeriodId: periodId))
             return BadRequest(new { message = "This period overlaps with an existing period for this employee." });
-        await _repo.UpdatePeriodAsync(periodId, request.StartDate, request.EndDate);
-        return NoContent();
+        var ok = await _repo.UpdatePeriodAsync(id, periodId, request.StartDate, request.EndDate);
+        return ok ? NoContent() : NotFound();
     }
 
     [HttpDelete("{id:int}/periods/{periodId:int}")]
     public async Task<IActionResult> DeletePeriod(int id, int periodId)
     {
-        await _repo.DeletePeriodAsync(periodId);
-        return NoContent();
+        var ok = await _repo.DeletePeriodAsync(id, periodId);
+        return ok ? NoContent() : NotFound();
     }
 }
