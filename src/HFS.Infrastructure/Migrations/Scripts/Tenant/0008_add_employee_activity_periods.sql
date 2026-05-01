@@ -28,7 +28,7 @@ JOIN sys.tables t ON c.object_id = t.object_id
 JOIN sys.schemas s ON t.schema_id = s.schema_id
 WHERE s.name = '{SCHEMA}' AND t.name = 'employee' AND c.name = 'is_active';
 IF @constraint IS NOT NULL
-    EXEC('ALTER TABLE {SCHEMA}.employee DROP CONSTRAINT ' + @constraint);
+    EXEC('ALTER TABLE {SCHEMA}.employee DROP CONSTRAINT ' + QUOTENAME(@constraint));
 
 -- Drop the old columns
 ALTER TABLE {SCHEMA}.employee DROP COLUMN is_active;
