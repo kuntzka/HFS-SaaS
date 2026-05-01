@@ -19,11 +19,18 @@ public class EmployeesController(EmployeeRepository repo) : ControllerBase
     public async Task<IActionResult> GetAll() =>
         Ok(await _repo.GetAllAsync());
 
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetById(int id)
+    {
+        var employee = await _repo.GetByIdAsync(id);
+        return employee is null ? NotFound() : Ok(employee);
+    }
+
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateEmployeeRequest request)
     {
         var employeeId = await _repo.CreateAsync(request.FirstName, request.LastName, request.FirstPeriodStart);
-        return StatusCode(201, new { employeeId });
+        return CreatedAtAction(nameof(GetById), new { id = employeeId }, new { employeeId });
     }
 
     [HttpPut("{id:int}")]
@@ -37,7 +44,7 @@ public class EmployeesController(EmployeeRepository repo) : ControllerBase
     public async Task<IActionResult> Delete(int id)
     {
         if (await _repo.IsInUseAsync(id))
-            return Conflict("Employee has commission or customer records and cannot be deleted. Use Deactivate instead.");
+            return Conflict(new { message = "Employee has commission or customer records and cannot be deleted. Use Deactivate instead." });
         await _repo.DeleteAsync(id);
         return NoContent();
     }
@@ -57,7 +64,7 @@ public class EmployeesController(EmployeeRepository repo) : ControllerBase
     public async Task<IActionResult> AddPeriod(int id, [FromBody] UpsertPeriodRequest request)
     {
         if (await _repo.HasOverlapAsync(id, request.StartDate, request.EndDate, excludePeriodId: null))
-            return BadRequest("This period overlaps with an existing period for this employee.");
+            return BadRequest(new { message = "This period overlaps with an existing period for this employee." });
         var periodId = await _repo.AddPeriodAsync(id, request.StartDate, request.EndDate);
         return StatusCode(201, new { id = periodId });
     }
@@ -66,7 +73,7 @@ public class EmployeesController(EmployeeRepository repo) : ControllerBase
     public async Task<IActionResult> UpdatePeriod(int id, int periodId, [FromBody] UpsertPeriodRequest request)
     {
         if (await _repo.HasOverlapAsync(id, request.StartDate, request.EndDate, excludePeriodId: periodId))
-            return BadRequest("This period overlaps with an existing period for this employee.");
+            return BadRequest(new { message = "This period overlaps with an existing period for this employee." });
         await _repo.UpdatePeriodAsync(periodId, request.StartDate, request.EndDate);
         return NoContent();
     }
