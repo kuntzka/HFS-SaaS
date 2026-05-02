@@ -8,7 +8,7 @@ namespace HFS.Api.Controllers;
 [ApiController]
 [Route("api/customers")]
 [Authorize]
-public class CustomersController(CustomerRepository repo, InventoryRepository inventoryRepo) : ControllerBase
+public class CustomersController(CustomerRepository repo, InventoryRepository inventoryRepo, InvoiceRepository invoiceRepo) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> List([FromQuery] string? search, [FromQuery] bool includeInactive = false) =>
@@ -69,6 +69,18 @@ public class CustomersController(CustomerRepository repo, InventoryRepository in
     [HttpDelete("{id:int}/services/{svcId:int}")]
     public async Task<IActionResult> DeleteService(int id, int svcId) =>
         await repo.DeleteServiceAsync(id, svcId) ? NoContent() : NotFound();
+
+    // --- Invoices sub-resource ---
+
+    [HttpGet("{id:int}/invoices")]
+    public async Task<IActionResult> GetInvoices(
+        int id, [FromQuery] DateOnly? from, [FromQuery] DateOnly? to)
+    {
+        if (from is null || to is null)
+            return BadRequest(new { message = "from and to are required" });
+
+        return Ok(await invoiceRepo.GetByCustomerAsync(id, from.Value, to.Value));
+    }
 
     [HttpGet("{id:int}/services/{svcId:int}/inventory")]
     public async Task<IActionResult> GetServiceInventory(int id, int svcId) =>
