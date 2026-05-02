@@ -11,6 +11,7 @@ import { useCustomer, useCustomerServices, CustomerServiceDetail } from '../hook
 import { useQueryClient } from '@tanstack/react-query'
 import client from '../api/client'
 import { ServiceInventoryTable, SkuOption } from '../components/ServiceInventoryTable'
+import { CustomerInvoicesTab } from '../components/CustomerInvoicesTab'
 
 const { Title } = Typography
 
@@ -368,7 +369,11 @@ export default function CustomerDetailPage() {
             label: 'Services',
             children: <ServicesTab customerId={customerId} />,
           },
-          { key: 'invoices',   label: 'Invoices',   children: <div>Invoices — Phase 4</div> },
+          {
+            key: 'invoices',
+            label: 'Invoices',
+            children: <CustomerInvoicesTab customerId={customerId} />,
+          },
           { key: 'commission', label: 'Commission', children: <div>Commission — Phase 5</div> },
         ]}
       />
