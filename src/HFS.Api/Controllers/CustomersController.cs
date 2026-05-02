@@ -76,6 +76,9 @@ public class CustomersController(CustomerRepository repo, InventoryRepository in
     public async Task<IActionResult> GetInvoices(
         int id, [FromQuery] DateOnly? from, [FromQuery] DateOnly? to)
     {
+        var customer = await repo.GetByIdAsync(id);
+        if (customer is null) return NotFound();
+
         if (from is null || to is null)
             return BadRequest(new { message = "from and to are required" });
 
