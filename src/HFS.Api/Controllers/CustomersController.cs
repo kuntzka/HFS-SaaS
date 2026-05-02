@@ -90,14 +90,14 @@ public class CustomersController(CustomerRepository repo, InventoryRepository in
         int id, int svcId, int invId, [FromBody] UpdateServiceInventoryRequest req)
     {
         var ok = await inventoryRepo.UpdateServiceItemAsync(
-            invId, req.Quantity, req.GroupNumber, req.ItemNumber, req.Comments);
+            invId, svcId, req.Quantity, req.GroupNumber, req.ItemNumber, req.Comments);
         return ok ? NoContent() : NotFound();
     }
 
     [HttpDelete("{id:int}/services/{svcId:int}/inventory/{invId:int}")]
     public async Task<IActionResult> DeleteServiceInventory(int id, int svcId, int invId)
     {
-        var ok = await inventoryRepo.DeleteServiceItemAsync(invId);
+        var ok = await inventoryRepo.DeleteServiceItemAsync(invId, svcId);
         return ok ? NoContent() : NotFound();
     }
 }

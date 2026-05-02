@@ -26,7 +26,7 @@ public class InventoryRepository(SqlConnectionFactory db)
         return await conn.QueryAsync<InventoryItem>(db.Sql("""
             SELECT sku AS Sku, description AS Description,
                    qty_on_hand AS QtyOnHand, min_level AS MinLevel,
-                   CASE WHEN qty_on_hand <= min_level THEN 1 ELSE 0 END AS BelowMinimum
+                   CAST(CASE WHEN qty_on_hand <= min_level THEN 1 ELSE 0 END AS BIT) AS BelowMinimum
             FROM {schema}.inventory_master
             ORDER BY sku
             """));
@@ -38,7 +38,7 @@ public class InventoryRepository(SqlConnectionFactory db)
         return await conn.QueryAsync<InventoryItem>(db.Sql("""
             SELECT sku AS Sku, description AS Description,
                    qty_on_hand AS QtyOnHand, min_level AS MinLevel,
-                   1 AS BelowMinimum
+                   CAST(1 AS BIT) AS BelowMinimum
             FROM {schema}.inventory_master
             WHERE qty_on_hand <= min_level
             ORDER BY sku
@@ -51,7 +51,7 @@ public class InventoryRepository(SqlConnectionFactory db)
         return await conn.QuerySingleOrDefaultAsync<InventoryItem>(db.Sql("""
             SELECT sku AS Sku, description AS Description,
                    qty_on_hand AS QtyOnHand, min_level AS MinLevel,
-                   CASE WHEN qty_on_hand <= min_level THEN 1 ELSE 0 END AS BelowMinimum
+                   CAST(CASE WHEN qty_on_hand <= min_level THEN 1 ELSE 0 END AS BIT) AS BelowMinimum
             FROM {schema}.inventory_master WHERE sku = @sku
             """), new { sku });
     }
@@ -133,17 +133,19 @@ public class InventoryRepository(SqlConnectionFactory db)
         short groupNumber, int itemNumber, string? comments)
     {
         using var conn = db.CreateConnection();
-        return await conn.QuerySingleAsync<int>(db.Sql("""
+        var newId = await conn.QuerySingleAsync<int>(db.Sql("""
             INSERT INTO {schema}.customer_service_inventory
                 (customer_svc_id, sku, quantity, group_number, item_number, comments)
             OUTPUT INSERTED.id
             VALUES
                 (@customerSvcId, @sku, @quantity, @groupNumber, @itemNumber, @comments)
             """), new { customerSvcId, sku, quantity, groupNumber, itemNumber, comments });
+        await RecalcServiceQtyAsync(conn, customerSvcId);
+        return newId;
     }
 
     public async Task<bool> UpdateServiceItemAsync(
-        int id, int quantity, short groupNumber, int itemNumber, string? comments)
+        int id, int customerSvcId, int quantity, short groupNumber, int itemNumber, string? comments)
     {
         using var conn = db.CreateConnection();
         var rows = await conn.ExecuteAsync(db.Sql("""
@@ -154,16 +156,31 @@ public class InventoryRepository(SqlConnectionFactory db)
                 comments     = @comments
             WHERE id = @id
             """), new { id, quantity, groupNumber, itemNumber, comments });
+        if (rows > 0) await RecalcServiceQtyAsync(conn, customerSvcId);
         return rows > 0;
     }
 
-    public async Task<bool> DeleteServiceItemAsync(int id)
+    public async Task<bool> DeleteServiceItemAsync(int id, int customerSvcId)
     {
         using var conn = db.CreateConnection();
         var rows = await conn.ExecuteAsync(
             db.Sql("DELETE FROM {schema}.customer_service_inventory WHERE id = @id"),
             new { id });
+        if (rows > 0) await RecalcServiceQtyAsync(conn, customerSvcId);
         return rows > 0;
+    }
+
+    private async Task RecalcServiceQtyAsync(System.Data.IDbConnection conn, int customerSvcId)
+    {
+        await conn.ExecuteAsync(db.Sql("""
+            UPDATE {schema}.customer_service
+            SET service_qty = (
+                SELECT ISNULL(SUM(quantity), 0)
+                FROM {schema}.customer_service_inventory
+                WHERE customer_svc_id = @customerSvcId
+            )
+            WHERE customer_svc_id = @customerSvcId
+            """), new { customerSvcId });
     }
 
     public async Task<int> GetBelowMinimumCountAsync()
