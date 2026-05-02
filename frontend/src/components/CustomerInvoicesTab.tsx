@@ -126,7 +126,6 @@ export function CustomerInvoicesTab({ customerId }: Props) {
       />
 
       <InvoiceDrawer
-        customerId={customerId}
         invoice={selectedInvoice}
         onClose={() => setSelectedInvoice(null)}
         onMutated={handleMutated}

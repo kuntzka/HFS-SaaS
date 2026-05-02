@@ -18,7 +18,6 @@ interface EditableSvcLine {
 }
 
 interface Props {
-  customerId: number
   invoice: CustomerInvoiceSummary | null
   onClose: () => void
   onMutated: () => void
@@ -44,13 +43,13 @@ export function InvoiceDrawer({ invoice, onClose, onMutated }: Props) {
     setServiceDate(invoice.serviceDate ? dayjs(invoice.serviceDate) : null)
     setEditedLines([])
     setLinesLoading(true)
+    let cancelled = false
     client
       .get(`/invoices/${invoice.invoiceNumber}/svc-lines`)
-      .then(r => {
-        setEditedLines(r.data)
-      })
-      .catch(() => message.error('Failed to load service lines'))
-      .finally(() => setLinesLoading(false))
+      .then(r => { if (!cancelled) setEditedLines(r.data) })
+      .catch(() => { if (!cancelled) message.error('Failed to load service lines') })
+      .finally(() => { if (!cancelled) setLinesLoading(false) })
+    return () => { cancelled = true }
   }, [invoice?.invoiceNumber])
 
   async function handleServiceDateChange(date: Dayjs | null, _dateString: string | string[]) {
@@ -93,6 +92,7 @@ export function InvoiceDrawer({ invoice, onClose, onMutated }: Props) {
         `/invoices/${invoice.invoiceNumber}/svc-lines`,
         editedLines.map(l => ({ id: l.id, servicePrice: l.servicePrice, tax: l.tax }))
       )
+      message.success('Service lines saved')
       onMutated()
     } catch {
       message.error('Failed to save service lines')
@@ -124,7 +124,7 @@ export function InvoiceDrawer({ invoice, onClose, onMutated }: Props) {
               min={0}
               precision={2}
               prefix="$"
-              value={editedLines.find(l => l.id === record.id)?.servicePrice ?? record.servicePrice}
+              value={record.servicePrice}
               onChange={v => setEditedLines(prev =>
                 prev.map(l => l.id === record.id ? { ...l, servicePrice: v ?? 0 } : l)
               )}
@@ -153,7 +153,7 @@ export function InvoiceDrawer({ invoice, onClose, onMutated }: Props) {
               min={0}
               precision={2}
               prefix="$"
-              value={editedLines.find(l => l.id === record.id)?.tax ?? record.tax}
+              value={record.tax}
               onChange={v => setEditedLines(prev =>
                 prev.map(l => l.id === record.id ? { ...l, tax: v ?? 0 } : l)
               )}
