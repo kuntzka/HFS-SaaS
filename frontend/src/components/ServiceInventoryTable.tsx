@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Table, Select, InputNumber, Input, Button, Space, Popconfirm, message } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
+import { useQueryClient } from '@tanstack/react-query'
 import client from '../api/client'
 
 export interface SkuOption {
@@ -45,6 +46,7 @@ const SENTINEL = -32768
 const NEW_ID = 0 as const
 
 export function ServiceInventoryTable({ customerId, customerSvcId, skus }: Props) {
+  const queryClient = useQueryClient()
   const [items, setItems] = useState<SvcInventoryItem[]>([])
   const [loading, setLoading] = useState(true)
   const [editingId, setEditingId] = useState<number | null>(null)
@@ -106,6 +108,7 @@ export function ServiceInventoryTable({ customerId, customerSvcId, skus }: Props
           : item
       ))
       setEditingId(null)
+      queryClient.invalidateQueries({ queryKey: ['customer-services', customerId] })
     } catch {
       message.error('Failed to save')
     } finally {
@@ -151,6 +154,7 @@ export function ServiceInventoryTable({ customerId, customerSvcId, skus }: Props
         },
       ])
       setAdding(false)
+      queryClient.invalidateQueries({ queryKey: ['customer-services', customerId] })
     } catch {
       message.error('Failed to add item')
     } finally {
@@ -165,6 +169,7 @@ export function ServiceInventoryTable({ customerId, customerSvcId, skus }: Props
         `/customers/${customerId}/services/${customerSvcId}/inventory/${id}`
       )
       setItems(prev => prev.filter(item => item.id !== id))
+      queryClient.invalidateQueries({ queryKey: ['customer-services', customerId] })
     } catch {
       message.error('Failed to delete item')
     } finally {
