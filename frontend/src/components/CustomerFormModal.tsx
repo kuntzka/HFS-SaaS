@@ -80,6 +80,7 @@ export function CustomerFormModal({ open, customerId, onClose, onSaved }: Props)
   // Pre-fill form when editing
   useEffect(() => {
     if (!open) return
+    if (customerId && !customer) return  // query not yet resolved — effect re-fires when customer arrives
     if (customerId && customer) {
       form.setFieldsValue({
         companyName:        customer.companyName,
