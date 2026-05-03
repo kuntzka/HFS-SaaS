@@ -4,6 +4,7 @@ import { Table, Input, Button, Space, Typography, Tag, Popconfirm, message } fro
 import { PlusOutlined, SearchOutlined, EditOutlined, StopOutlined } from '@ant-design/icons'
 import { useCustomers, CustomerSummary } from '../hooks/useCustomers'
 import { useQueryClient } from '@tanstack/react-query'
+import axios from 'axios'
 import client from '../api/client'
 import { CustomerFormModal } from '../components/CustomerFormModal'
 
@@ -39,8 +40,13 @@ export default function CustomersPage() {
       await client.delete(`/customers/${customerId}`)
       message.success('Customer deactivated')
       queryClient.invalidateQueries({ queryKey: ['customers'] })
-    } catch {
-      message.error('Failed to deactivate customer')
+      queryClient.invalidateQueries({ queryKey: ['customer', customerId] })
+    } catch (err) {
+      if (axios.isAxiosError(err) && err.response?.data?.message) {
+        message.error(err.response.data.message as string)
+      } else {
+        message.error('Failed to deactivate customer')
+      }
     } finally {
       setDeactivating(null)
     }
