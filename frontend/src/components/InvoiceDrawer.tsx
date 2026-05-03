@@ -28,6 +28,8 @@ interface NewLineValues {
   comments: string
 }
 
+type DisplayLine = EditableSvcLine | { id: typeof NEW_LINE_ID }
+
 interface Props {
   invoice: CustomerInvoiceSummary | null
   onClose: () => void
@@ -59,6 +61,7 @@ export function InvoiceDrawer({ invoice, onClose, onMutated }: Props) {
     setServiceDate(invoice.serviceDate ? dayjs(invoice.serviceDate) : null)
     setEditedLines([])
     setAdding(false)
+    setNewLine({ serviceDesc: '', serviceQty: 1, servicePrice: 0, tax: 0, comments: '' })
     setLinesLoading(true)
     let cancelled = false
     client
@@ -121,25 +124,15 @@ export function InvoiceDrawer({ invoice, onClose, onMutated }: Props) {
     if (!invoice || !newLine.serviceDesc.trim()) return
     setSavingNew(true)
     try {
-      const res = await client.post(`/invoices/${invoice.invoiceNumber}/svc-lines`, {
+      await client.post(`/invoices/${invoice.invoiceNumber}/svc-lines`, {
         serviceDesc: newLine.serviceDesc.trim(),
         serviceQty: newLine.serviceQty,
         servicePrice: newLine.servicePrice,
         tax: newLine.tax,
         comments: newLine.comments || null,
       })
-      setEditedLines(prev => [
-        ...prev,
-        {
-          id: res.data.id,
-          customerSvcId: 0,
-          serviceDesc: newLine.serviceDesc.trim(),
-          serviceQty: newLine.serviceQty,
-          servicePrice: newLine.servicePrice,
-          tax: newLine.tax,
-          comments: newLine.comments || null,
-        },
-      ])
+      const linesRes = await client.get(`/invoices/${invoice.invoiceNumber}/svc-lines`)
+      setEditedLines(linesRes.data)
       setAdding(false)
       setNewLine({ serviceDesc: '', serviceQty: 1, servicePrice: 0, tax: 0, comments: '' })
       onMutated()
@@ -168,8 +161,6 @@ export function InvoiceDrawer({ invoice, onClose, onMutated }: Props) {
     if (!invoice) return
     window.open(`/api/reports/invoice/${invoice.invoiceNumber}/pdf`, '_blank')
   }
-
-  type DisplayLine = EditableSvcLine | { id: typeof NEW_LINE_ID }
 
   const displayLines: DisplayLine[] = [
     ...editedLines,
