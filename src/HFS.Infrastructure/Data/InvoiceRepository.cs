@@ -290,6 +290,19 @@ public class InvoiceRepository(SqlConnectionFactory db)
             """), new { invoiceNumber });
     }
 
+    private async Task RecalcInvoiceTotalsAsync(
+        System.Data.IDbConnection conn, int invoiceNumber, System.Data.IDbTransaction tx)
+    {
+        await conn.ExecuteAsync(db.Sql("""
+            UPDATE {schema}.invoice
+            SET service_price  = (SELECT ISNULL(SUM(service_price), 0) FROM {schema}.invoice_svc WHERE invoice_number = @invoiceNumber),
+                tax            = (SELECT ISNULL(SUM(tax), 0)           FROM {schema}.invoice_svc WHERE invoice_number = @invoiceNumber),
+                taxable_amount = (SELECT ISNULL(SUM(CASE WHEN tax > 0 THEN service_price ELSE 0 END), 0)
+                                  FROM {schema}.invoice_svc WHERE invoice_number = @invoiceNumber)
+            WHERE invoice_number = @invoiceNumber
+            """), new { invoiceNumber }, tx);
+    }
+
     public async Task UpdateSvcLinesAsync(int invoiceNumber, IEnumerable<(int Id, decimal ServicePrice, decimal Tax)> lines)
     {
         using var conn = db.CreateConnection();
@@ -305,16 +318,7 @@ public class InvoiceRepository(SqlConnectionFactory db)
                 """), new { id, price, tax, invoiceNumber }, tx);
         }
 
-        // Recalculate invoice header totals from lines
-        await conn.ExecuteAsync(db.Sql("""
-            UPDATE {schema}.invoice
-            SET service_price   = (SELECT ISNULL(SUM(service_price), 0) FROM {schema}.invoice_svc WHERE invoice_number = @invoiceNumber),
-                tax             = (SELECT ISNULL(SUM(tax), 0)           FROM {schema}.invoice_svc WHERE invoice_number = @invoiceNumber),
-                taxable_amount  = (SELECT ISNULL(SUM(CASE WHEN tax > 0 THEN service_price ELSE 0 END), 0)
-                                   FROM {schema}.invoice_svc WHERE invoice_number = @invoiceNumber)
-            WHERE invoice_number = @invoiceNumber
-            """), new { invoiceNumber }, tx);
-
+        await RecalcInvoiceTotalsAsync(conn, invoiceNumber, tx);
         await tx.CommitAsync();
     }
 
@@ -336,5 +340,45 @@ public class InvoiceRepository(SqlConnectionFactory db)
               AND invoice_date BETWEEN @from AND @to
             ORDER BY invoice_date DESC
             """), new { customerId, from, to });
+    }
+
+    public async Task<int> AddSvcLineAsync(
+        int invoiceNumber, string serviceDesc, int serviceQty,
+        decimal servicePrice, decimal tax, string? comments)
+    {
+        using var conn = db.CreateConnection();
+        await conn.OpenAsync();
+        using var tx = await conn.BeginTransactionAsync();
+
+        var customerSvcId = await conn.ExecuteScalarAsync<int>(
+            db.Sql("SELECT customer_svc_id FROM {schema}.invoice WHERE invoice_number = @invoiceNumber"),
+            new { invoiceNumber }, tx);
+
+        var newId = await conn.QuerySingleAsync<int>(db.Sql("""
+            INSERT INTO {schema}.invoice_svc
+                (invoice_number, customer_svc_id, service_desc, service_qty, service_price, tax, comments)
+            OUTPUT INSERTED.id
+            VALUES
+                (@invoiceNumber, @customerSvcId, @serviceDesc, @serviceQty, @servicePrice, @tax, @comments)
+            """), new { invoiceNumber, customerSvcId, serviceDesc, serviceQty, servicePrice, tax, comments }, tx);
+
+        await RecalcInvoiceTotalsAsync(conn, invoiceNumber, tx);
+        await tx.CommitAsync();
+        return newId;
+    }
+
+    public async Task<bool> DeleteSvcLineAsync(int id, int invoiceNumber)
+    {
+        using var conn = db.CreateConnection();
+        await conn.OpenAsync();
+        using var tx = await conn.BeginTransactionAsync();
+
+        var rows = await conn.ExecuteAsync(
+            db.Sql("DELETE FROM {schema}.invoice_svc WHERE id = @id AND invoice_number = @invoiceNumber"),
+            new { id, invoiceNumber }, tx);
+
+        if (rows > 0) await RecalcInvoiceTotalsAsync(conn, invoiceNumber, tx);
+        await tx.CommitAsync();
+        return rows > 0;
     }
 }
