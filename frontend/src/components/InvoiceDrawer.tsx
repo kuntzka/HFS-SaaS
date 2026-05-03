@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react'
 import {
   Drawer, Descriptions, Tag, Button, DatePicker, Popconfirm,
-  Space, Table, InputNumber, message,
+  Space, Table, InputNumber, Input, message,
 } from 'antd'
+import { PlusOutlined, DeleteOutlined } from '@ant-design/icons'
 import dayjs, { Dayjs } from 'dayjs'
 import client from '../api/client'
 import type { CustomerInvoiceSummary } from './CustomerInvoicesTab'
+
+const NEW_LINE_ID = 0 as const
 
 interface EditableSvcLine {
   id: number
@@ -17,6 +20,14 @@ interface EditableSvcLine {
   comments: string | null
 }
 
+interface NewLineValues {
+  serviceDesc: string
+  serviceQty: number
+  servicePrice: number
+  tax: number
+  comments: string
+}
+
 interface Props {
   invoice: CustomerInvoiceSummary | null
   onClose: () => void
@@ -26,22 +37,28 @@ interface Props {
 export function InvoiceDrawer({ invoice, onClose, onMutated }: Props) {
   const open = invoice !== null
 
-  // Local state so the drawer reflects mutations without waiting for parent re-fetch
   const [isComplete, setIsComplete] = useState(false)
   const [serviceDate, setServiceDate] = useState<Dayjs | null>(null)
 
-  const [linesLoading, setLinesLoading] = useState(false)
   const [editedLines, setEditedLines] = useState<EditableSvcLine[]>([])
+  const [linesLoading, setLinesLoading] = useState(false)
   const [savingLines, setSavingLines] = useState(false)
   const [savingDate, setSavingDate] = useState(false)
   const [completing, setCompleting] = useState(false)
 
-  // Sync local state when a new invoice is selected
+  const [adding, setAdding] = useState(false)
+  const [newLine, setNewLine] = useState<NewLineValues>({
+    serviceDesc: '', serviceQty: 1, servicePrice: 0, tax: 0, comments: '',
+  })
+  const [savingNew, setSavingNew] = useState(false)
+  const [deletingId, setDeletingId] = useState<number | null>(null)
+
   useEffect(() => {
     if (!invoice) return
     setIsComplete(invoice.isComplete)
     setServiceDate(invoice.serviceDate ? dayjs(invoice.serviceDate) : null)
     setEditedLines([])
+    setAdding(false)
     setLinesLoading(true)
     let cancelled = false
     client
@@ -60,7 +77,6 @@ export function InvoiceDrawer({ invoice, onClose, onMutated }: Props) {
         serviceDate: date ? date.format('YYYY-MM-DD') : null,
       })
       setServiceDate(date)
-      // Backend auto-marks complete when serviceDate is non-null
       if (date !== null) setIsComplete(true)
       onMutated()
     } catch {
@@ -101,22 +117,102 @@ export function InvoiceDrawer({ invoice, onClose, onMutated }: Props) {
     }
   }
 
+  async function handleSaveNew() {
+    if (!invoice || !newLine.serviceDesc.trim()) return
+    setSavingNew(true)
+    try {
+      const res = await client.post(`/invoices/${invoice.invoiceNumber}/svc-lines`, {
+        serviceDesc: newLine.serviceDesc.trim(),
+        serviceQty: newLine.serviceQty,
+        servicePrice: newLine.servicePrice,
+        tax: newLine.tax,
+        comments: newLine.comments || null,
+      })
+      setEditedLines(prev => [
+        ...prev,
+        {
+          id: res.data.id,
+          customerSvcId: 0,
+          serviceDesc: newLine.serviceDesc.trim(),
+          serviceQty: newLine.serviceQty,
+          servicePrice: newLine.servicePrice,
+          tax: newLine.tax,
+          comments: newLine.comments || null,
+        },
+      ])
+      setAdding(false)
+      setNewLine({ serviceDesc: '', serviceQty: 1, servicePrice: 0, tax: 0, comments: '' })
+      onMutated()
+    } catch {
+      message.error('Failed to add service line')
+    } finally {
+      setSavingNew(false)
+    }
+  }
+
+  async function handleDelete(id: number) {
+    if (!invoice) return
+    setDeletingId(id)
+    try {
+      await client.delete(`/invoices/${invoice.invoiceNumber}/svc-lines/${id}`)
+      setEditedLines(prev => prev.filter(l => l.id !== id))
+      onMutated()
+    } catch {
+      message.error('Failed to delete service line')
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
   function handleOpenPdf() {
     if (!invoice) return
     window.open(`/api/reports/invoice/${invoice.invoiceNumber}/pdf`, '_blank')
   }
 
+  type DisplayLine = EditableSvcLine | { id: typeof NEW_LINE_ID }
+
+  const displayLines: DisplayLine[] = [
+    ...editedLines,
+    ...(adding ? [{ id: NEW_LINE_ID }] : []),
+  ]
+
   const svcLineColumns = [
     {
       title: 'Description',
-      dataIndex: 'serviceDesc',
       key: 'serviceDesc',
+      render: (_: unknown, record: DisplayLine) => {
+        if (record.id === NEW_LINE_ID) {
+          return (
+            <Input
+              size="small"
+              placeholder="Description"
+              value={newLine.serviceDesc}
+              onChange={e => setNewLine(prev => ({ ...prev, serviceDesc: e.target.value }))}
+            />
+          )
+        }
+        return (record as EditableSvcLine).serviceDesc
+      },
     },
     {
       title: 'Price',
       key: 'servicePrice',
       width: 110,
-      render: (_: unknown, record: EditableSvcLine) => {
+      render: (_: unknown, record: DisplayLine) => {
+        if (record.id === NEW_LINE_ID) {
+          return (
+            <InputNumber
+              size="small"
+              min={0}
+              precision={2}
+              prefix="$"
+              value={newLine.servicePrice}
+              onChange={v => setNewLine(prev => ({ ...prev, servicePrice: v ?? 0 }))}
+              style={{ width: '100%' }}
+            />
+          )
+        }
+        const line = record as EditableSvcLine
         if (!isComplete) {
           return (
             <InputNumber
@@ -124,28 +220,55 @@ export function InvoiceDrawer({ invoice, onClose, onMutated }: Props) {
               min={0}
               precision={2}
               prefix="$"
-              value={record.servicePrice}
+              value={line.servicePrice}
               onChange={v => setEditedLines(prev =>
-                prev.map(l => l.id === record.id ? { ...l, servicePrice: v ?? 0 } : l)
+                prev.map(l => l.id === line.id ? { ...l, servicePrice: v ?? 0 } : l)
               )}
               style={{ width: '100%' }}
             />
           )
         }
-        return `$${record.servicePrice.toFixed(2)}`
+        return `$${line.servicePrice.toFixed(2)}`
       },
     },
     {
       title: 'Qty',
-      dataIndex: 'serviceQty',
       key: 'serviceQty',
-      width: 60,
+      width: 70,
+      render: (_: unknown, record: DisplayLine) => {
+        if (record.id === NEW_LINE_ID) {
+          return (
+            <InputNumber
+              size="small"
+              min={1}
+              value={newLine.serviceQty}
+              onChange={v => setNewLine(prev => ({ ...prev, serviceQty: v ?? 1 }))}
+              style={{ width: '100%' }}
+            />
+          )
+        }
+        return (record as EditableSvcLine).serviceQty
+      },
     },
     {
       title: 'Tax',
       key: 'tax',
       width: 100,
-      render: (_: unknown, record: EditableSvcLine) => {
+      render: (_: unknown, record: DisplayLine) => {
+        if (record.id === NEW_LINE_ID) {
+          return (
+            <InputNumber
+              size="small"
+              min={0}
+              precision={2}
+              prefix="$"
+              value={newLine.tax}
+              onChange={v => setNewLine(prev => ({ ...prev, tax: v ?? 0 }))}
+              style={{ width: '100%' }}
+            />
+          )
+        }
+        const line = record as EditableSvcLine
         if (!isComplete) {
           return (
             <InputNumber
@@ -153,22 +276,72 @@ export function InvoiceDrawer({ invoice, onClose, onMutated }: Props) {
               min={0}
               precision={2}
               prefix="$"
-              value={record.tax}
+              value={line.tax}
               onChange={v => setEditedLines(prev =>
-                prev.map(l => l.id === record.id ? { ...l, tax: v ?? 0 } : l)
+                prev.map(l => l.id === line.id ? { ...l, tax: v ?? 0 } : l)
               )}
               style={{ width: '100%' }}
             />
           )
         }
-        return `$${record.tax.toFixed(2)}`
+        return `$${line.tax.toFixed(2)}`
       },
     },
     {
       title: 'Comments',
-      dataIndex: 'comments',
       key: 'comments',
-      render: (v: string | null) => v ?? '—',
+      render: (_: unknown, record: DisplayLine) => {
+        if (record.id === NEW_LINE_ID) {
+          return (
+            <Input
+              size="small"
+              value={newLine.comments}
+              onChange={e => setNewLine(prev => ({ ...prev, comments: e.target.value }))}
+            />
+          )
+        }
+        return (record as EditableSvcLine).comments ?? '—'
+      },
+    },
+    {
+      title: '',
+      key: 'actions',
+      width: 100,
+      render: (_: unknown, record: DisplayLine) => {
+        if (record.id === NEW_LINE_ID) {
+          return (
+            <Space size={4}>
+              <Button
+                size="small"
+                type="primary"
+                onClick={handleSaveNew}
+                loading={savingNew}
+                disabled={!newLine.serviceDesc.trim()}
+              >
+                Save
+              </Button>
+              <Button size="small" onClick={() => setAdding(false)}>Cancel</Button>
+            </Space>
+          )
+        }
+        if (isComplete) return null
+        const line = record as EditableSvcLine
+        return (
+          <Popconfirm
+            title="Remove this line?"
+            okText="Remove"
+            okButtonProps={{ danger: true }}
+            onConfirm={() => handleDelete(line.id)}
+          >
+            <Button
+              size="small"
+              icon={<DeleteOutlined />}
+              danger
+              loading={deletingId === line.id}
+            />
+          </Popconfirm>
+        )
+      },
     },
   ]
 
@@ -191,7 +364,6 @@ export function InvoiceDrawer({ invoice, onClose, onMutated }: Props) {
       width={600}
       destroyOnClose
     >
-      {/* Details */}
       <Descriptions bordered size="small" column={1} style={{ marginBottom: 16 }}>
         <Descriptions.Item label="Invoice Date">
           {dayjs(invoice.invoiceDate).format('MM/DD/YYYY')}
@@ -210,7 +382,6 @@ export function InvoiceDrawer({ invoice, onClose, onMutated }: Props) {
         <Descriptions.Item label="Qty">{invoice.serviceQty}</Descriptions.Item>
       </Descriptions>
 
-      {/* Actions */}
       <Space style={{ marginBottom: 16 }}>
         {!isComplete && (
           <Popconfirm
@@ -226,9 +397,8 @@ export function InvoiceDrawer({ invoice, onClose, onMutated }: Props) {
         <Button onClick={handleOpenPdf}>View PDF</Button>
       </Space>
 
-      {/* Service Lines */}
-      <Table<EditableSvcLine>
-        dataSource={editedLines}
+      <Table<DisplayLine>
+        dataSource={displayLines}
         columns={svcLineColumns}
         rowKey="id"
         size="small"
@@ -238,14 +408,28 @@ export function InvoiceDrawer({ invoice, onClose, onMutated }: Props) {
       />
 
       {!isComplete && (
-        <Button
-          type="primary"
-          style={{ marginTop: 8 }}
-          onClick={handleSaveLines}
-          loading={savingLines}
-        >
-          Save Lines
-        </Button>
+        <Space style={{ marginTop: 8 }}>
+          {!adding && (
+            <Button
+              type="dashed"
+              icon={<PlusOutlined />}
+              size="small"
+              onClick={() => setAdding(true)}
+            >
+              Add Line
+            </Button>
+          )}
+          {editedLines.length > 0 && (
+            <Button
+              type="primary"
+              size="small"
+              onClick={handleSaveLines}
+              loading={savingLines}
+            >
+              Save Lines
+            </Button>
+          )}
+        </Space>
       )}
     </Drawer>
   )
