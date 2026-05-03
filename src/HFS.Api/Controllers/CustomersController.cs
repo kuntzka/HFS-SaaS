@@ -37,6 +37,10 @@ public class CustomersController(CustomerRepository repo, InventoryRepository in
         return await repo.UpdateAsync(entity) ? NoContent() : NotFound();
     }
 
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Deactivate(int id) =>
+        await repo.DeactivateAsync(id) ? NoContent() : NotFound();
+
     // --- Services sub-resource ---
 
     [HttpGet("{id:int}/services")]
