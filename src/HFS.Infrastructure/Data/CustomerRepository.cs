@@ -75,7 +75,7 @@ public class CustomerRepository(SqlConnectionFactory db)
         using var conn = db.CreateConnection();
         var where = includeInactive ? "" : "AND c.is_active = 1";
         if (!string.IsNullOrWhiteSpace(search))
-            where += " AND c.company_name LIKE @search + '%'";
+            where += " AND (c.company_name LIKE @search + '%' OR TRY_CAST(@search AS INT) = c.customer_id)";
 
         return await conn.QueryAsync<CustomerListItem>(
             db.Sql($"""
