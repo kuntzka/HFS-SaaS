@@ -19,7 +19,7 @@ public class ReferenceDataRepository(SqlConnectionFactory db)
                    r.route_code  AS RouteCode,
                    r.description AS Description,
                    r.employee_id AS EmployeeId,
-                   e.first_name + ' ' + e.last_name AS EmployeeName
+                   CONCAT(e.first_name, ' ', e.last_name) AS EmployeeName
             FROM {schema}.route r
             LEFT JOIN {schema}.employee e ON r.employee_id = e.employee_id
             ORDER BY r.route_code
