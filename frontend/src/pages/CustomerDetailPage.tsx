@@ -5,11 +5,12 @@ import {
   Modal, Form, Select, InputNumber, DatePicker, Checkbox, Input,
   Space, Popconfirm, message,
 } from 'antd'
-import { ArrowLeftOutlined, PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, PlusOutlined, EditOutlined, DeleteOutlined, StopOutlined } from '@ant-design/icons'
 import dayjs, { Dayjs } from 'dayjs'
 import { useCustomer, useCustomerServices, CustomerServiceDetail } from '../hooks/useCustomers'
 import { useQueryClient } from '@tanstack/react-query'
 import client from '../api/client'
+import { CustomerFormModal } from '../components/CustomerFormModal'
 import { ServiceInventoryTable, SkuOption } from '../components/ServiceInventoryTable'
 import { CustomerInvoicesTab } from '../components/CustomerInvoicesTab'
 
@@ -333,14 +334,50 @@ export default function CustomerDetailPage() {
   const navigate = useNavigate()
   const customerId = Number(id)
   const { data: customer, isLoading } = useCustomer(customerId)
+  const queryClient = useQueryClient()
+  const [modalOpen, setModalOpen]       = useState(false)
+  const [deactivating, setDeactivating] = useState(false)
+
+  async function handleDeactivate() {
+    setDeactivating(true)
+    try {
+      await client.delete(`/customers/${customerId}`)
+      message.success('Customer deactivated')
+      queryClient.invalidateQueries({ queryKey: ['customers'] })
+      navigate('/customers')
+    } catch {
+      message.error('Failed to deactivate customer')
+      setDeactivating(false)
+    }
+  }
+
+  function handleSaved() {
+    queryClient.invalidateQueries({ queryKey: ['customer', customerId] })
+    queryClient.invalidateQueries({ queryKey: ['customers'] })
+  }
 
   if (isLoading) return <Skeleton active />
 
   return (
     <>
-      <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/customers')} style={{ marginBottom: 16 }}>
-        Back
-      </Button>
+      <Space style={{ marginBottom: 16 }}>
+        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/customers')}>
+          Back
+        </Button>
+        <Button icon={<EditOutlined />} onClick={() => setModalOpen(true)}>
+          Edit
+        </Button>
+        <Popconfirm
+          title="Deactivate this customer? They will no longer appear in the active customers list."
+          okText="Deactivate"
+          okButtonProps={{ danger: true }}
+          onConfirm={handleDeactivate}
+        >
+          <Button icon={<StopOutlined />} danger loading={deactivating}>
+            Deactivate
+          </Button>
+        </Popconfirm>
+      </Space>
       <Title level={4} style={{ marginTop: 0 }}>
         {customer?.companyName ?? `Customer #${id}`}
       </Title>
@@ -376,6 +413,12 @@ export default function CustomerDetailPage() {
           },
           { key: 'commission', label: 'Commission', children: <div>Commission — Phase 5</div> },
         ]}
+      />
+      <CustomerFormModal
+        open={modalOpen}
+        customerId={customerId}
+        onClose={() => setModalOpen(false)}
+        onSaved={handleSaved}
       />
     </>
   )
