@@ -1,5 +1,7 @@
+using HFS.Application.Schedule;
 using HFS.Domain.Entities;
 using HFS.Infrastructure.Data;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -8,7 +10,12 @@ namespace HFS.Api.Controllers;
 [ApiController]
 [Route("api/customers")]
 [Authorize]
-public class CustomersController(CustomerRepository repo, InventoryRepository inventoryRepo, InvoiceRepository invoiceRepo) : ControllerBase
+public class CustomersController(
+    CustomerRepository repo,
+    InventoryRepository inventoryRepo,
+    InvoiceRepository invoiceRepo,
+    ScheduleRepository scheduleRepo,
+    IMediator mediator) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> List([FromQuery] string? search, [FromQuery] bool includeInactive = false) =>
@@ -59,6 +66,7 @@ public class CustomersController(CustomerRepository repo, InventoryRepository in
 
         var entity = req.ToEntity(id);
         var newId = await repo.CreateServiceAsync(entity);
+        await mediator.Send(new GenerateScheduleCommand(DateTime.UtcNow.Year, id, false, null));
         return Created($"/api/customers/{id}/services/{newId}", new { customerSvcId = newId });
     }
 
@@ -87,6 +95,14 @@ public class CustomersController(CustomerRepository repo, InventoryRepository in
             return BadRequest(new { message = "from and to are required" });
 
         return Ok(await invoiceRepo.GetByCustomerAsync(id, from.Value, to.Value));
+    }
+
+    [HttpGet("{id:int}/schedule")]
+    public async Task<IActionResult> GetSchedule(int id, [FromQuery] int? year)
+    {
+        var customer = await repo.GetByIdAsync(id);
+        if (customer is null) return NotFound();
+        return Ok(await scheduleRepo.GetByCustomerAsync(id, year ?? DateTime.UtcNow.Year));
     }
 
     [HttpGet("{id:int}/services/{svcId:int}/inventory")]
