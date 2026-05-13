@@ -13,6 +13,13 @@ public class ReferenceDataController(ReferenceDataRepository repo) : ControllerB
     public async Task<IActionResult> GetRoutes() =>
         Ok(await repo.GetRoutesAsync());
 
+    [HttpPut("routes/{id:int}")]
+    public async Task<IActionResult> UpdateRoute(int id, [FromBody] UpdateRouteRequest req)
+    {
+        var ok = await repo.UpdateRouteAsync(id, req.EmployeeId);
+        return ok ? NoContent() : NotFound();
+    }
+
     [HttpGet("service-types")]
     public async Task<IActionResult> GetServiceTypes() =>
         Ok(await repo.GetServiceTypesAsync());
@@ -33,3 +40,5 @@ public class ReferenceDataController(ReferenceDataRepository repo) : ControllerB
     public async Task<IActionResult> GetOffsetCodes() =>
         Ok(await repo.GetOffsetCodesAsync());
 }
+
+public record UpdateRouteRequest(int? EmployeeId);

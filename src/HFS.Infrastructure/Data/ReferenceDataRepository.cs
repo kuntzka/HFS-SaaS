@@ -2,7 +2,7 @@ using Dapper;
 
 namespace HFS.Infrastructure.Data;
 
-public record RouteDto(int RouteId, string RouteCode, string? Description);
+public record RouteDto(int RouteId, string RouteCode, string? Description, int? EmployeeId, string? EmployeeName);
 public record ServiceTypeDto(int ServiceTypeId, string ServiceName, string? GlAccount, bool IsActive);
 public record FrequencyCodeDto(string FrequencyCode, string Description, int ChangeFactor);
 public record PayTypeDto(int PayTypeId, string PayTypeName);
@@ -14,8 +14,16 @@ public class ReferenceDataRepository(SqlConnectionFactory db)
     public async Task<IEnumerable<RouteDto>> GetRoutesAsync()
     {
         using var conn = db.CreateConnection();
-        return await conn.QueryAsync<RouteDto>(
-            db.Sql("SELECT route_id AS RouteId, route_code AS RouteCode, description AS Description FROM {schema}.route ORDER BY route_code"));
+        return await conn.QueryAsync<RouteDto>(db.Sql("""
+            SELECT r.route_id    AS RouteId,
+                   r.route_code  AS RouteCode,
+                   r.description AS Description,
+                   r.employee_id AS EmployeeId,
+                   e.first_name + ' ' + e.last_name AS EmployeeName
+            FROM {schema}.route r
+            LEFT JOIN {schema}.employee e ON r.employee_id = e.employee_id
+            ORDER BY r.route_code
+            """));
     }
 
     public async Task<IEnumerable<ServiceTypeDto>> GetServiceTypesAsync()
@@ -51,5 +59,14 @@ public class ReferenceDataRepository(SqlConnectionFactory db)
         using var conn = db.CreateConnection();
         return await conn.QueryAsync<OffsetCodeDto>(
             db.Sql("SELECT offset_code_id AS OffsetCodeId, offset_code AS OffsetCode, description AS Description, ar_offset AS ArOffset FROM {schema}.offset_code ORDER BY offset_code"));
+    }
+
+    public async Task<bool> UpdateRouteAsync(int routeId, int? employeeId)
+    {
+        using var conn = db.CreateConnection();
+        var rows = await conn.ExecuteAsync(
+            db.Sql("UPDATE {schema}.route SET employee_id = @employeeId WHERE route_id = @routeId"),
+            new { routeId, employeeId });
+        return rows > 0;
     }
 }
