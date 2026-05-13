@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Table, Tag, DatePicker, Space } from 'antd'
 import dayjs, { Dayjs } from 'dayjs'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import client from '../api/client'
 import { InvoiceDrawer } from './InvoiceDrawer'
 
@@ -25,8 +25,6 @@ interface Props {
 const startOfYear = dayjs().startOf('year')
 
 export function CustomerInvoicesTab({ customerId }: Props) {
-  const queryClient = useQueryClient()
-
   const [dateRange, setDateRange] = useState<[Dayjs, Dayjs]>([
     dayjs().subtract(90, 'day'),
     dayjs(),
@@ -44,10 +42,6 @@ export function CustomerInvoicesTab({ customerId }: Props) {
         .get(`/customers/${customerId}/invoices`, { params: { from, to } })
         .then(r => r.data),
   })
-
-  function handleMutated() {
-    queryClient.invalidateQueries({ queryKey: ['customer-invoices', customerId] })
-  }
 
   const columns = [
     {
@@ -125,11 +119,7 @@ export function CustomerInvoicesTab({ customerId }: Props) {
         locale={{ emptyText: 'No invoices in selected date range' }}
       />
 
-      <InvoiceDrawer
-        invoice={selectedInvoice}
-        onClose={() => setSelectedInvoice(null)}
-        onMutated={handleMutated}
-      />
+      <InvoiceDrawer invoice={selectedInvoice} onClose={() => setSelectedInvoice(null)} />
     </>
   )
 }
