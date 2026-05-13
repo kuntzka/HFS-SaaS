@@ -307,19 +307,21 @@ public class InvoiceRepository(SqlConnectionFactory db)
             """), new { invoiceNumber }, tx);
     }
 
-    public async Task UpdateSvcLinesAsync(int invoiceNumber, IEnumerable<(int Id, decimal ServicePrice, decimal Tax)> lines)
+    public async Task UpdateSvcLinesAsync(int invoiceNumber, IEnumerable<(int Id, int ServiceQty, decimal ServicePrice, decimal Tax)> lines)
     {
         using var conn = db.CreateConnection();
         await conn.OpenAsync();
         using var tx = await conn.BeginTransactionAsync();
 
-        foreach (var (id, price, tax) in lines)
+        foreach (var (id, qty, price, tax) in lines)
         {
             await conn.ExecuteAsync(db.Sql("""
                 UPDATE {schema}.invoice_svc
-                SET service_price = @price, tax = @tax
+                SET service_qty   = @qty,
+                    service_price = @price,
+                    tax           = @tax
                 WHERE id = @id AND invoice_number = @invoiceNumber
-                """), new { id, price, tax, invoiceNumber }, tx);
+                """), new { id, qty, price, tax, invoiceNumber }, tx);
         }
 
         await RecalcInvoiceTotalsAsync(conn, invoiceNumber, tx);

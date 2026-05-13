@@ -91,7 +91,8 @@ public class InvoicesController(IMediator mediator, InvoiceRepository invoiceRep
     [HttpPut("{invoiceNumber:int}/svc-lines")]
     public async Task<IActionResult> UpdateSvcLines(int invoiceNumber, [FromBody] List<SvcLineUpdate> updates)
     {
-        await invoiceRepo.UpdateSvcLinesAsync(invoiceNumber, updates.Select(u => (u.Id, u.ServicePrice, u.Tax)));
+        await invoiceRepo.UpdateSvcLinesAsync(invoiceNumber,
+            updates.Select(u => (u.Id, u.ServiceQty, u.ServicePrice, u.Tax)));
         return NoContent();
     }
 
@@ -116,7 +117,7 @@ public class InvoicesController(IMediator mediator, InvoiceRepository invoiceRep
 public record GenerateInvoicesRequest(short Week, short Year, bool Force = false);
 public record SetCompleteRequest(bool Complete);
 public record SetServiceDateRequest(DateOnly? ServiceDate);
-public record SvcLineUpdate(int Id, decimal ServicePrice, decimal Tax);
+public record SvcLineUpdate(int Id, int ServiceQty, decimal ServicePrice, decimal Tax);
 public record AddSvcLineRequest(
     string ServiceDesc,
     int ServiceQty,
