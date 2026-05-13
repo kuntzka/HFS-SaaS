@@ -61,6 +61,10 @@ public class PreviewCommissionHandler(CommissionRepository commissionRepo)
         if (cmd.CalculateAmc)
         {
             var excludedIds = await commissionRepo.GetExcludedEmployeeIdsAsync();
+            // Hoist name lookup — same employee for all services when override is set
+            string? amcOverrideName = cmd.AmcEmployeeId.HasValue
+                ? await commissionRepo.GetEmployeeNameAsync(cmd.AmcEmployeeId.Value)
+                : null;
 
             foreach (var svc in services)
             {
@@ -69,15 +73,11 @@ public class PreviewCommissionHandler(CommissionRepository commissionRepo)
 
                 // Use explicit override employee if provided, else fall back to service's customer employee
                 int? resolvedEmployeeId = cmd.AmcEmployeeId ?? svc.EmployeeId;
-                if (resolvedEmployeeId.HasValue && excludedIds.Contains(resolvedEmployeeId.Value)) continue;
+                if (!resolvedEmployeeId.HasValue || excludedIds.Contains(resolvedEmployeeId.Value)) continue;
 
                 var numWeek = CommissionCalculator.GetNumServiceWeek(serviceDate, svc.FirstServiceDate);
-                int empId = resolvedEmployeeId ?? 0;
-
-                // Resolve employee name: use override employee's name if AmcEmployeeId is set
-                string employeeName = cmd.AmcEmployeeId.HasValue
-                    ? await commissionRepo.GetEmployeeNameAsync(cmd.AmcEmployeeId.Value)
-                    : svc.EmployeeName;
+                int empId = resolvedEmployeeId.Value;
+                string employeeName = amcOverrideName ?? svc.EmployeeName;
 
                 var effectivePrice = overrideMap.TryGetValue(svc.CustomerSvcId, out var ov) ? ov : svc.ServicePrice;
 
