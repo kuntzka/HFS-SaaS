@@ -1,7 +1,7 @@
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { Layout, Menu, Button, Space, Typography } from 'antd'
 import { LogoutOutlined, TeamOutlined, CalendarOutlined, FileTextOutlined,
-         DollarOutlined, InboxOutlined, UserOutlined, BarChartOutlined, ExportOutlined, SettingOutlined } from '@ant-design/icons'
+         DollarOutlined, InboxOutlined, UserOutlined, BarChartOutlined, ExportOutlined, SettingOutlined, EnvironmentOutlined } from '@ant-design/icons'
 import { useAuth } from '../context/AuthContext'
 
 const { Sider, Content, Header } = Layout
@@ -14,6 +14,7 @@ const menuItems = [
   { key: '/commission', icon: <DollarOutlined />,    label: 'Commission' },
   { key: '/inventory',  icon: <InboxOutlined />,     label: 'Inventory' },
   { key: '/employees',  icon: <UserOutlined />,      label: 'Employees' },
+  { key: '/routes',     icon: <EnvironmentOutlined />, label: 'Routes' },
   { key: '/reports',    icon: <BarChartOutlined />,  label: 'Reports' },
   { key: '/export',     icon: <ExportOutlined />,    label: 'Export' },
   { key: '/settings',   icon: <SettingOutlined />,   label: 'Settings' },

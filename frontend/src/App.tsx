@@ -11,6 +11,7 @@ import InvoicesPage from './pages/InvoicesPage'
 import CommissionsPage from './pages/CommissionsPage'
 import InventoryPage from './pages/InventoryPage'
 import EmployeesPage from './pages/EmployeesPage'
+import RoutesPage from './pages/RoutesPage'
 import ReportsPage from './pages/ReportsPage'
 import ExportPage from './pages/ExportPage'
 
@@ -35,6 +36,7 @@ export default function App() {
           <Route path="commission" element={<CommissionsPage />} />
           <Route path="inventory"  element={<InventoryPage />} />
           <Route path="employees"  element={<EmployeesPage />} />
+          <Route path="routes"     element={<RoutesPage />} />
           <Route path="reports"    element={<ReportsPage />} />
           <Route path="export"     element={<ExportPage />} />
           <Route path="settings"   element={<PlaceholderPage title="Settings" />} />
