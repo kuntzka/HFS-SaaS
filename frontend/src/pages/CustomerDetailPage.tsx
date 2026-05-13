@@ -13,6 +13,7 @@ import client from '../api/client'
 import { CustomerFormModal } from '../components/CustomerFormModal'
 import { ServiceInventoryTable, SkuOption } from '../components/ServiceInventoryTable'
 import { CustomerInvoicesTab } from '../components/CustomerInvoicesTab'
+import { CustomerScheduleTab } from '../components/CustomerScheduleTab'
 
 const { Title } = Typography
 
@@ -405,6 +406,11 @@ export default function CustomerDetailPage() {
             key: 'services',
             label: 'Services',
             children: <ServicesTab customerId={customerId} />,
+          },
+          {
+            key: 'schedule',
+            label: 'Schedule',
+            children: <CustomerScheduleTab customerId={customerId} />,
           },
           {
             key: 'invoices',
