@@ -37,7 +37,9 @@ public record InvoiceListItem(
     bool IsComplete,
     bool IsPrinted,
     bool IsAdHoc,
-    DateTime? ServiceDate);
+    DateTime? ServiceDate,
+    int? CustomerEmployeeId,
+    int? RouteEmployeeId);
 
 public record EditableSvcLine(
     int Id,
@@ -207,19 +209,21 @@ public class InvoiceRepository(SqlConnectionFactory db)
     {
         using var conn = db.CreateConnection();
         return await conn.QueryAsync<InvoiceListItem>(db.Sql("""
-            SELECT i.invoice_number  AS InvoiceNumber,
-                   i.customer_id     AS CustomerId,
-                   c.company_name    AS CompanyName,
-                   r.route_code      AS RouteCode,
-                   i.service_price   AS ServicePrice,
-                   i.tax             AS Tax,
-                   i.taxable_amount  AS TaxableAmount,
-                   i.week_number     AS WeekNumber,
-                   i.sched_year      AS SchedYear,
-                   i.is_complete     AS IsComplete,
-                   i.is_printed      AS IsPrinted,
-                   i.is_ad_hoc       AS IsAdHoc,
-                   i.service_date    AS ServiceDate
+            SELECT i.invoice_number       AS InvoiceNumber,
+                   i.customer_id          AS CustomerId,
+                   c.company_name         AS CompanyName,
+                   r.route_code           AS RouteCode,
+                   i.service_price        AS ServicePrice,
+                   i.tax                  AS Tax,
+                   i.taxable_amount       AS TaxableAmount,
+                   i.week_number          AS WeekNumber,
+                   i.sched_year           AS SchedYear,
+                   i.is_complete          AS IsComplete,
+                   i.is_printed           AS IsPrinted,
+                   i.is_ad_hoc            AS IsAdHoc,
+                   i.service_date         AS ServiceDate,
+                   c.employee_id          AS CustomerEmployeeId,
+                   r.employee_id          AS RouteEmployeeId
             FROM {schema}.invoice i
             JOIN {schema}.customer c     ON i.customer_id = c.customer_id
             LEFT JOIN {schema}.route r   ON c.route_id = r.route_id
